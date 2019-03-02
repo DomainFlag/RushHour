@@ -15,7 +15,7 @@ OBJDIR = ./obj/
 all: clean $(TARGET) run
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@ -lncurses
 
 $(OBJDIR)%.o: %.cpp %.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
