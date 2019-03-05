@@ -3,7 +3,7 @@
 
 #include <string>
 #include <vector>
-#include <unordered_set>
+#include <unordered_map>
 
 #include "./../include/Block.h"
 #include "./../include/Move.h"
@@ -15,7 +15,7 @@ public:
     static unsigned int const size = 6;
 
     vector<Block *> blocks;
-    unordered_set<string> state;
+    unordered_map<string, Move *> state;
 
     Block * target = NULL;
     Block * destination = NULL;
@@ -42,7 +42,7 @@ public:
 
     vector<Block *> sampleDestinations();
 
-    bool encode();
+    Move * encode(Move * move);
 
     void init();
 

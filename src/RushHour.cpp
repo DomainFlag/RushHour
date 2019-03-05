@@ -135,7 +135,7 @@ void RushHour::insert(Block * block) {
     }
 };
 
-bool RushHour::encode() {
+Move * RushHour::encode(Move * move) {
     stringstream ss;
 
     for(unsigned int g = 0; g < this->blocks.size(); g++) {
@@ -146,13 +146,14 @@ bool RushHour::encode() {
 
     string state = ss.str();
 
-    if(this->state.find(state) == this->state.end()) {
-        this->state.insert(state);
+    auto it = this->state.find(state);
+    if(it == this->state.end()) {
+        this->state.insert({state, move});
     } else {
-        return false;
+        return it->second;
     }
 
-    return true;
+    return NULL;
 };
 
 void RushHour::init() {
@@ -311,43 +312,28 @@ void RushHour::backward(Move * move) {
 };
 
 int RushHour::solve() {
-    Move * root = new Move;
+    Move root;
+
     queue<Move *> ariadne;
-
-    for(unsigned int g = 0; g < this->blocks.size(); g++) {
-        for(int h = -1; h <= 1; h += 2) {
-            if(this->resolve(this->blocks[g], h)) {
-                Move * move = new Move(this->blocks[g], h);
-                move->parent = root;
-
-                root->moves.push_back(move);
-                ariadne.push(move);
-            }
-        }
-    }
+    ariadne.push(& root);
 
     while(!ariadne.empty()) {
         Move * move = ariadne.front();
-        forward(move);
-
         ariadne.pop();
 
-        if(this->encode()) {
+        forward(move);
+
+        if(this->encode(move) == NULL) {
             if(this->resolve()) {
                 this->draw();
 
-                int min = move->depth();
-
-                delete root;
-
-                return min;
+                return move->depth();
             }
 
             for(unsigned int g = 0; g < this->blocks.size(); g++) {
                 for(int h = -1; h <= 1; h += 2) {
                     if(this->resolve(this->blocks[g], h)) {
-                        Move * child = new Move(this->blocks[g], h);
-                        child->parent = move;
+                        Move * child = new Move(move, this->blocks[g], h);
 
                         move->moves.push_back(child);
                         ariadne.push(child);
@@ -359,61 +345,50 @@ int RushHour::solve() {
         backward(move);
     }
 
-    delete root;
-
-    return 0;
+    return -1;
 };
 
 int RushHour::solve_backward(int depth) {
-    Move * root = new Move;
+    Move root;
+
+    vector<Move *> graph;
+
     queue<Move *> ariadne;
+    ariadne.push(& root);
 
-    for(unsigned int g = 0; g < this->blocks.size(); g++) {
-        for(int h = -1; h <= 1; h += 2) {
-            if(this->resolve(this->blocks[g], h)) {
-                Move * move = new Move(this->blocks[g], h);
-                move->parent = root;
-
-                root->moves.push_back(move);
-                ariadne.push(move);
-            }
-        }
-    }
-
-    int max_d = 0;
-
+    bool resolved;
     while(!ariadne.empty()) {
         Move * move = ariadne.front();
-        forward(move);
-
         ariadne.pop();
 
-        if(this->encode()) {
-            int min = move->depth();
+        forward(move);
 
-            if(!this->resolve()) {
-                this->draw();
+        Move * linkedMove = this->encode(move);
+        resolved = this->resolve();
+
+        if(!resolved) {
+            move->resolved = true;
+
+            if(linkedMove == NULL) {
+                graph.push_back(move);
             }
 
-            if(max_d < min) {
-                max_d = min;
+            if(move->parent != NULL && move->parent->resolved) {
+                Move::link(move, move->parent);
             }
+        }
 
-            if(depth != -1) {
-                if(depth == min) {
-                    delete root;
-
-                    return max_d;
-                }
+        if(linkedMove != NULL) {
+            if(!resolved && linkedMove->resolved) {
+                Move::link(move, linkedMove);
             }
-
+        } else {
             for(unsigned int g = 0; g < this->blocks.size(); g++) {
                 for(int h = -1; h <= 1; h += 2) {
                     if(this->resolve(this->blocks[g], h)) {
-                        Move * child = new Move(this->blocks[g], h);
-                        child->parent = move;
-
+                        Move * child = new Move(move, this->blocks[g], h);
                         move->moves.push_back(child);
+
                         ariadne.push(child);
                     }
                 }
@@ -423,7 +398,5 @@ int RushHour::solve_backward(int depth) {
         backward(move);
     }
 
-    delete root;
-
-    return max_d;
+    return -1;
 };
