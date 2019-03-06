@@ -4,8 +4,10 @@
 
 using namespace std;
 
-int main() {
-    RushHour rh("./res/puzzle.txt");
+int main(int argc, const char ** argv) {
+    string filepath = (argc == 1) ? "./res/puzzle.txt" : "./res/" + string(argv[1]);
+
+    RushHour rh(filepath);
     rh.draw();
 
     int min = rh.solve();

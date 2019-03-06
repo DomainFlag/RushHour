@@ -97,20 +97,38 @@ void RushHour::sample(RushHour & rushHour, unsigned int count) {
     }
 };
 
-RushHour RushHour::create(string filepath, unsigned int row, unsigned int col, unsigned int length, bool orientation) {
-    Block * target = new Block(row, col, length, 2, orientation);
-    Block * destination = new Block(row, col, orientation);
+void RushHour::create(string filepath, unsigned int row, unsigned int col, unsigned int length, bool orientation, int complexity) {
+    bool resolved = false;
 
-    RushHour rushHour(target, destination);
-    rushHour.blocks.push_back(target);
-    rushHour.insert(target);
+    while(!resolved) {
+        Block * target = new Block(row, col, length, 2, orientation);
+        Block * destination = new Block(row, col, orientation);
 
-    RushHour::sample(rushHour, 12);
+        RushHour rushHour(target, destination);
+        rushHour.blocks.push_back(target);
+        rushHour.insert(target);
 
+        RushHour::sample(rushHour, 10);
+
+        int current = rushHour.solve_backward();
+        if(current > complexity) {
+            resolved = true;
+
+            cout << "Updated state:" << endl;
+            rushHour.draw();
+
+            cout << current << " steps needed to be solved" << endl;
+
+            RushHour::saveToFile(rushHour, filepath);
+        }
+    }
+};
+
+void RushHour::saveToFile(RushHour & rushHour, string filepath) {
     fstream file(filepath, fstream::out | fstream::trunc);
 
     if(file.is_open()) {
-        file << destination->row << " " << destination->col << " " << destination->orientation << endl;
+        file << rushHour.destination->row << " " << rushHour.destination->col << " " << rushHour.destination->orientation << endl;
 
         for(unsigned int g = 0; g < rushHour.blocks.size(); g++) {
             Block * & block = rushHour.blocks[g];
@@ -121,7 +139,7 @@ RushHour RushHour::create(string filepath, unsigned int row, unsigned int col, u
         file.close();
     }
 
-    return rushHour;
+    cout << "Successfully saved" << endl;
 };
 
 void RushHour::insert(Block * block) {
@@ -327,7 +345,7 @@ int RushHour::solve() {
             if(this->resolve()) {
                 this->draw();
 
-                return move->depth();
+                return move->depth;
             }
 
             for(unsigned int g = 0; g < this->blocks.size(); g++) {
@@ -348,7 +366,7 @@ int RushHour::solve() {
     return -1;
 };
 
-int RushHour::solve_backward(int depth) {
+int RushHour::solve_backward() {
     Move root;
 
     vector<Move *> graph;
@@ -356,32 +374,21 @@ int RushHour::solve_backward(int depth) {
     queue<Move *> ariadne;
     ariadne.push(& root);
 
-    bool resolved;
     while(!ariadne.empty()) {
         Move * move = ariadne.front();
         ariadne.pop();
 
         forward(move);
 
-        Move * linkedMove = this->encode(move);
-        resolved = this->resolve();
+        Move * link = this->encode(move);
+        move->resolved = this->resolve();
 
-        if(!resolved) {
-            move->resolved = true;
-
-            if(linkedMove == NULL) {
-                graph.push_back(move);
-            }
-
-            if(move->parent != NULL && move->parent->resolved) {
-                Move::link(move, move->parent);
-            }
+        if(!move->resolved) {
+            graph.push_back(move);
         }
 
-        if(linkedMove != NULL) {
-            if(!resolved && linkedMove->resolved) {
-                Move::link(move, linkedMove);
-            }
+        if(link != NULL) {
+            move->link = link;
         } else {
             for(unsigned int g = 0; g < this->blocks.size(); g++) {
                 for(int h = -1; h <= 1; h += 2) {
@@ -396,6 +403,81 @@ int RushHour::solve_backward(int depth) {
         }
 
         backward(move);
+    }
+
+    return RushHour::solve_graph(graph);
+};
+
+int RushHour::solve_graph(vector<Move *> & graph) {
+    unordered_set<Move *> state;
+
+    Move * gap = NULL;
+    int mark = -1;
+
+    bool red;
+
+    cout << "Non-resolved states: " << graph.size() << endl;
+
+    for(int g = 0; g < graph.size(); g++) {
+        Move * & move = graph[g];
+        if(state.find(move) != state.end()) {
+            continue;
+        }
+
+        queue<Move *> moves;
+        moves.push(move);
+
+        red = true;
+        while(!moves.empty() && red) {
+            move = moves.front();
+            moves.pop();
+
+            state.insert(move);
+
+            if(!move->resolved) {
+                if(move->parent->resolved) {
+                    move->mark = 1;
+                }
+
+                for(int g = 0; g < move->moves.size(); g++) {
+                    Move * & child = move->moves[g];
+
+                    if(child->resolved) {
+                        red = false;
+                    } else {
+                        if(move->moves[g]->mark == -1 || (move->moves[g]->mark > (move->mark + 1))) {
+                            move->moves[g]->mark = (move->mark + 1);
+                        }
+
+                        if(state.find(move->moves[g]) == state.end()) {
+                            moves.push(move->moves[g]);
+                        }
+                    }
+                }
+
+                if(move->moves.empty()) {
+                    red = false;
+                }
+            } else {
+                red = false;
+            }
+        }
+    }
+
+    for(int g = 0; g < graph.size(); g++) {
+        if(!graph[g]->resolved) {
+            if(graph[g]->mark > mark) {
+                mark = graph[g]->mark;
+
+                gap = graph[g];
+            }
+        }
+    }
+
+    if(gap != NULL && gap->mark != -1) {
+        this->forward(gap);
+
+        return gap->mark;
     }
 
     return -1;

@@ -14,9 +14,9 @@ SOURCES = $(filter-out ./obj/main.o, $(OBJS))
 
 .PHONY: clean run help print
 
-all: clean $(TARGET) run
+all: clean $(TARGET)
 
-check: clean $(ITEM) run
+check: clean $(ITEM)
 
 $(ITEM): ./tests/test$(item).cpp $(SOURCES)
 	$(CXX) $(CXXFLAGS) $^ -o $@

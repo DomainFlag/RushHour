@@ -32,7 +32,9 @@ public:
 
     static void sample(RushHour & rushHour, unsigned int count);
 
-    static RushHour create(string filepath, unsigned int row, unsigned int col, unsigned int length, bool orientation);
+    static void create(string filepath, unsigned int row, unsigned int col, unsigned int length, bool orientation, int complexity = -1);
+
+    static void saveToFile(RushHour & rushHour, string filepath);
 
     void insert(Block * block);
 
@@ -64,7 +66,9 @@ public:
 
     int solve();
 
-    int solve_backward(int depth);
+    int solve_backward();
+
+    int solve_graph(vector<Move *> & graph);
 };
 
 #endif

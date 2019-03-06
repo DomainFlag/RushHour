@@ -5,7 +5,9 @@
 
 Move::Move() {};
 
-Move::Move(Move * parent, Block * block, int value) : parent(parent), block(block), value(value) {};
+Move::Move(Move * parent, Block * block, int value) : parent(parent), block(block), value(value) {
+    this->depth = parent->depth + 1;
+};
 
 Move::~Move() {
     for(unsigned int g = 0; g < moves.size(); g++) {
@@ -13,16 +15,4 @@ Move::~Move() {
             delete moves[g];
         }
     }
-};
-
-int Move::depth() {
-    if(this->parent == NULL)
-        return 0;
-
-    return 1 + this->parent->depth();
-};
-
-void Move::link(Move * move1, Move * move2) {
-    move1->linked.insert(move2);
-    move2->linked.insert(move1);
 };

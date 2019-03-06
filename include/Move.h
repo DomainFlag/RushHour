@@ -9,23 +9,21 @@
 class Move {
 public:
     vector<Move *> moves;
-    unordered_set<Move *> linked;
 
     Move * parent = NULL;
+    Move * link = NULL;
     Block * block;
 
+    int depth = -1;
+    int mark = -1;
     int value;
-    bool resolved = false;
+    bool resolved;
 
     Move();
 
     Move(Move * move, Block * block, int value);
 
     ~Move();
-
-    int depth();
-
-    static void link(Move * move1, Move * move2);
 };
 
 #endif
