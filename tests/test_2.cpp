@@ -4,8 +4,10 @@
 
 using namespace std;
 
-int main() {
-    RushHour::create("./res/puzzle-x.txt", 3, 0, 2, 1, 25);
+int main(int argc, char ** argv) {
+    srand(time(NULL));
+
+    RushHour::create();
 
     return 0;
 };

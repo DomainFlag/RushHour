@@ -10,20 +10,21 @@ vpath %.o ./obj
 
 TESTS := $(patsubst ./tests/%.cpp, ./obj/%.o, $(wildcard ./tests/*.cpp))
 OBJS := $(patsubst ./src/%.cpp, ./obj/%.o, $(wildcard ./src/*.cpp))
+EXECS := $(wildcard ./*.exe)
 SOURCES = $(filter-out ./obj/main.o, $(OBJS))
 
-.PHONY: clean run help print
+.PHONY: clean help print
 
 all: clean $(TARGET)
 
 check: clean $(ITEM)
 
-$(ITEM): ./tests/test$(item).cpp $(SOURCES)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+$(ITEM): ./tests/test_$(item).cpp $(SOURCES)
+	$(CXX) $(CXXFLAGS) $^ -o $@ -lSDL2 -lSDL2_ttf
 	$(eval TARGET = $(ITEM))
 
 $(TARGET): $(OBJS)
-	$(CXX) $(CXXFLAGS) $^ -o $@
+	$(CXX) $(CXXFLAGS) $^ -o $@ -lSDL2 -lSDL2_ttf
 
 $(OBJDIR)%.o: %.cpp %.h
 	$(CXX) $(CXXFLAGS) -c $< -o $@
@@ -32,13 +33,10 @@ $(OBJDIR)%.o: %.cpp %.h
 	@:
 
 clean:
-	rm -rf $(OBJS) $(TARGET)
+	rm -rf $(OBJS) $(EXECS)
 
 print:
 	ls ./tests
-
-run:
-	./$(TARGET)
 
 help:
 	@echo "Running main program:"

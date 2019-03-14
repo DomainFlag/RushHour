@@ -22,6 +22,10 @@ public:
     ~Block();
 
     void print();
+
+    bool isMe(unsigned int row, unsigned int col);
+
+    bool equal(Block * block1, Block * block2);
 };
 
 #endif
