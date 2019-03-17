@@ -48,7 +48,7 @@ void Window::init() {
             //Event handler
             SDL_Event e;
 
-            string filepath = "./res/puzzle.txt";
+            string filepath = "./res/puzzle22.txt";
 
             RushHour rh(filepath);
             rh.solve_forward();
@@ -87,7 +87,14 @@ void Window::init() {
                     }
                 }
             }
+
+            SDL_DestroyRenderer(this->renderer);
         }
+    }
+
+    if(this->font != NULL) {
+        // free sdl2 fonts
+        TTF_CloseFont(font);
     }
 
     // destroy window
@@ -101,7 +108,7 @@ void Window::render(RushHour & rh) {
     this->clear();
 
     this->wall(rh.destination->row, rh.destination->col, rh.destination->orientation);
-    this->menu();
+    this->menu(rh);
 
     int width, height;
     for(unsigned int g = 0; g < rh.blocks.size(); g++) {
@@ -172,12 +179,13 @@ void Window::wall(int row, int col, bool orientation) {
     }
 };
 
-void Window::menu() {
+void Window::menu(RushHour & rh) {
     this->text(Window::SCREEN_WIDTH / 2, 16, "RushHour");
+    this->text(Window::SCREEN_WIDTH / 2, 48, to_string(rh.index) + " / " + to_string(rh.depth()));
 
     float offset = Window::SCREEN_WIDTH / (this->menus.size() + 1);
     float acc = offset;
-    for(int g = 0; g < this->menus.size(); g++) {
+    for(unsigned int g = 0; g < this->menus.size(); g++) {
         this->text(acc, Window::SCREEN_HEIGHT - 64, this->menus[g]);
 
         acc += offset;
@@ -195,7 +203,7 @@ void Window::text(float x, float y, string text) {
     SDL_Texture * texture = SDL_CreateTextureFromSurface(renderer, surface);
 
     // create message box
-    SDL_Rect message = {x - surface->w / 2, y + surface->h / 2, surface->w, surface->h};
+    SDL_Rect message = {(int) x - surface->w / 2, (int) y + surface->h / 2, surface->w, surface->h};
 
     // copy to main renderer
     SDL_RenderCopy(this->renderer, texture, NULL, & message);

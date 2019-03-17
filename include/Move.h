@@ -8,7 +8,8 @@
 
 class Move {
 public:
-    vector<Move *> moves;
+    unordered_set<Move *> parents;
+    unordered_set<Move *> children;
 
     Move * parent = NULL;
     Move * link = NULL;
@@ -23,7 +24,7 @@ public:
 
     Move(Move * move, Block * block, int value);
 
-    ~Move();
+    int getDepth();
 };
 
 #endif

@@ -48,6 +48,10 @@ public:
 
     static void saveToFile(RushHour & rushHour);
 
+    void clear();
+
+    void clear(unordered_set<Move *> & state, Move * move);
+
     void insert(Block * block);
 
     bool validate(Block * block);
@@ -79,6 +83,8 @@ public:
     void cycle(int value);
 
     void solve_forward();
+
+    int depth();
 
     int solve_backward();
 

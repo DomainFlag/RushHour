@@ -28,7 +28,8 @@ public:
 	bool quit = false;
 
 	SDL_Renderer * renderer;
-	TTF_Font * font;
+
+	TTF_Font * font = NULL;
 
     Window();
 
@@ -44,7 +45,7 @@ public:
 
 	void release();
 
-	void menu();
+	void menu(RushHour & rh);
 
 	void text(float x, float y, string message);
 };

@@ -60,14 +60,34 @@ RushHour::RushHour(Block * target, Block * destination) {
 };
 
 RushHour::~RushHour() {
-    if(this->root != NULL)
-        delete this->root;
-
-    if(this->destination != NULL)
+    if(this->destination != NULL) {
         delete this->destination;
+    }
 
     for(Block * & block : this->blocks) {
         delete block;
+    }
+
+    this->clear();
+};
+
+void RushHour::clear() {
+    unordered_set<Move *> state;
+
+    this->clear(state, this->root);
+};
+
+void RushHour::clear(unordered_set<Move *> & state, Move * move) {
+    if(move != NULL) {
+        for(auto it = move->children.begin(); it != move->children.end(); it++) {
+            if((* it) != NULL && state.find(* it) == state.end()) {
+                state.insert(* it);
+
+                delete (* it);
+
+                this->clear(state, (* it));
+            }
+        }
     }
 };
 
@@ -148,6 +168,8 @@ void RushHour::create() {
 
 void RushHour::create(unsigned int row, unsigned int col, unsigned int length, bool orientation, int complexity) {
     for(unsigned int g = 0; g < RushHour::trials; g++) {
+        cout << "Trial #" << g << endl;
+
         Block * target = new Block(row, col, length, 2, orientation);
         Block * destination = new Block(row, col, orientation);
 
@@ -296,8 +318,9 @@ bool RushHour::resolve(Block * & block, int value) {
     (* current) += value;
 
     for(unsigned int g = 0; g < block->length; g++) {
-        if((!resolve(* current) || this->domain[row][col] != 0) && !block->isMe(row, col)) {
-            return false;
+        if(!block->isMe(row, col)) {
+            if(!resolve(* current) || this->domain[row][col] != 0)
+                return false;
         }
 
         (* current)++;
@@ -327,13 +350,13 @@ void RushHour::backward(Move * move, bool save) {
 };
 
 void RushHour::cycle(int value) {
-    int i = this->index + value;
+    unsigned int i = this->index + value;
 
     if(i >= 0 && i < this->thread.size()) {
         if(value == -1) {
-            this->resolve(this->thread[this->index], true);
+            this->resolve(this->thread[this->index - 1], true);
         } else {
-            this->resolve(this->thread[i], false);
+            this->resolve(this->thread[this->index], false);
         }
 
         this->index = i;
@@ -341,14 +364,12 @@ void RushHour::cycle(int value) {
 };
 
 void RushHour::solve_forward() {
-    if(this->root != NULL) {
-        delete this->root;
-    }
+    this->clear();
 
     this->root = new Move();
 
     queue<Move *> ariadne;
-    ariadne.push(root);
+    ariadne.push(this->root);
 
     while(!ariadne.empty()) {
         Move * move = ariadne.front();
@@ -373,7 +394,7 @@ void RushHour::solve_forward() {
                         if(resolved) {
                             Move * child = new Move(move, this->blocks[g], h * i);
 
-                            move->moves.push_back(child);
+                            move->children.insert(child);
                             ariadne.push(child);
                         }
                     }
@@ -385,13 +406,19 @@ void RushHour::solve_forward() {
     }
 };
 
+int RushHour::depth() {
+    return thread.size();
+};
+
 int RushHour::solve_backward() {
-    Move root;
+    this->clear();
+
+    this->root = new Move();
 
     unordered_set<Move *> graph;
 
     queue<Move *> ariadne;
-    ariadne.push(& root);
+    ariadne.push(this->root);
 
     while(!ariadne.empty()) {
         Move * move = ariadne.front();
@@ -402,13 +429,16 @@ int RushHour::solve_backward() {
         Move * link = this->encode(move);
         move->resolved = this->resolve();
 
-        if(!move->resolved) {
-            graph.insert(move);
-        }
-
         if(link != NULL) {
-            move->link = link;
+            link->parents.insert(move->parent);
+
+            move->parent->children.erase(move);
+            move->parent->children.insert(link);
         } else {
+            if(!move->resolved && graph.find(move) == graph.end()) {
+                graph.insert(move);
+            }
+
             for(unsigned int g = 0; g < this->blocks.size(); g++) {
                 for(int h = -1; h <= 1; h += 2) {
                     bool resolved = true;
@@ -418,7 +448,9 @@ int RushHour::solve_backward() {
 
                         if(resolved) {
                             Move * child = new Move(move, this->blocks[g], h * i);
-                            move->moves.push_back(child);
+
+                            move->children.insert(child);
+                            child->parents.insert(move);
 
                             ariadne.push(child);
                         }
@@ -428,64 +460,93 @@ int RushHour::solve_backward() {
         }
 
         backward(move, false);
+
+        if(link != NULL) {
+            delete move;
+        }
     }
 
     return RushHour::solve_graph(graph);
 };
 
 int RushHour::solve_graph(unordered_set<Move *> & graph) {
-    unordered_set<Move *> state;
+    Move * move, * root;
+    int mark, depth;
 
-    Move * gap = NULL;
-    int mark = -1;
-
-    bool red;
-
-    for(Move * move : graph) {
-        if(state.find(move) != state.end()) {
-            continue;
-        }
-
+    for(auto it = graph.begin(); it != graph.end(); it++) {
+        unordered_set<Move *> state;
         queue<Move *> moves;
-        moves.push(move);
 
-        red = true;
-        while(!moves.empty() && red) {
+        root = (* it);
+        root->mark = -1;
+
+        state.insert(root);
+
+        root->depth = 0;
+        moves.push(root);
+
+        mark = 1000000, depth = 0;
+
+        while(!moves.empty()) {
             move = moves.front();
             moves.pop();
 
-            state.insert(move);
+            if(depth != move->depth) {
+                depth = move->depth;
+            }
 
-            if(!move->resolved) {
-                if(move->parent->resolved) {
-                    move->mark = 1;
+            if(mark <= depth) {
+                break;
+            };
+
+            if(move->resolved) {
+                if(mark > move->depth) {
+                    mark = move->depth;
                 }
 
-                for(unsigned int g = 0; g < move->moves.size(); g++) {
-                    Move * & child = move->moves[g];
+                break;
+            } else {
+                if(move->mark != -1) {
+                    if(move->depth + move->mark < mark) {
+                        mark = move->depth + move->mark;
+                    }
+                } else {
+                    // case where there is nearby move where the state is resolved
+                    for(auto it1 = move->parents.begin(); it1 != move->parents.end(); it1++) {
+                        Move * item = (* it1);
 
-                    if(child->resolved) {
-                        red = false;
-                    } else {
-                        if(move->moves[g]->mark == -1 || (move->moves[g]->mark > (move->mark + 1))) {
-                            move->moves[g]->mark = (move->mark + 1);
+                        if(state.find(item) == state.end()) {
+                            item->depth = move->depth + 1;
+
+                            moves.push(item);
+                            state.insert(item);
                         }
+                    }
 
-                        if(state.find(move->moves[g]) == state.end()) {
-                            moves.push(move->moves[g]);
+                    for(auto it1 = move->children.begin(); it1 != move->children.end(); it1++) {
+                        Move * item = (* it1);
+
+                        if(state.find(item) == state.end()) {
+                            item->depth = move->depth + 1;
+
+                            moves.push(item);
+                            state.insert(item);
                         }
                     }
                 }
-
-                if(move->moves.empty()) {
-                    red = false;
-                }
-            } else {
-                red = false;
             }
+        }
+
+        if(mark != 1000000) {
+            root->mark = mark;
+        } else {
+            root->mark = -1;
         }
     }
 
+    mark = -1;
+
+    Move * gap = NULL;
     for(Move * move : graph) {
         if(!move->resolved) {
             if(move->mark > mark) {
@@ -495,6 +556,8 @@ int RushHour::solve_graph(unordered_set<Move *> & graph) {
             }
         }
     }
+
+    cout << mark << endl;
 
     if(gap != NULL && gap->mark != -1) {
         this->forward(gap);

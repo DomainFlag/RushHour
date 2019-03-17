@@ -6,7 +6,9 @@
 using namespace std;
 
 int main(int argc, char ** argv) {
-    Window window;
+    srand(time(NULL));
+
+    RushHour::create(3, 0, 2, 1, 15);
 
     return 0;
 };

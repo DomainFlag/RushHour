@@ -5,9 +5,12 @@
 using namespace std;
 
 int main(int argc, char ** argv) {
-    srand(time(NULL));
+    string filepath = "./res/puzzle13.txt";
 
-    RushHour::create(3, 0, 2, 1, 8);
+    RushHour rh(filepath);
+    rh.solve_forward();
+
+    cout << "Solved with " << rh.thread.size() << " moves" << endl;
 
     return 0;
 };
