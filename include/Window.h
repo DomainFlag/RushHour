@@ -25,6 +25,8 @@ public:
 	const static int BLOCK_SIZE = 50;
 	const static int MARGIN_SIZE = 8;
 
+	unsigned int size = 6;
+
 	bool quit = false;
 
 	SDL_Renderer * renderer;
@@ -33,7 +35,7 @@ public:
 
     Window();
 
-	void init();
+	void init(string filepath);
 
 	void render(RushHour & rh);
 

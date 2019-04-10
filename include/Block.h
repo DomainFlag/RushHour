@@ -8,14 +8,17 @@ using namespace std;
 
 class Block {
 public:
-    unsigned int row;
-    unsigned int col;
+    unsigned int row, col;
     unsigned int length;
 
     int value;
-    bool orientation;
+    bool orientation, flag = false;
+
+    Block();
 
     Block(unsigned int row, unsigned int col, unsigned int length, int value, bool orientation);
+
+    Block(unsigned int row, unsigned int col, unsigned int length, bool orientation);
 
     Block(unsigned int row, unsigned int col, bool orientation);
 

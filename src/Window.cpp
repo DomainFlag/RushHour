@@ -9,17 +9,23 @@
 #include <SDL2/SDL_ttf.h>
 
 Window::Window() {
-    this->menus.push_back("create");
-    this->menus.push_back("solve");
-    this->menus.push_back("hint");
+    this->menus.push_back("Press left/right to interact");
 };
 
-void Window::init() {
+void Window::init(string filepath) {
+    // initialize our solver
+    RushHour rh(filepath);
 
-    //The window we'll be rendering to
+    // solve problem
+    rh.solve_forward();
+
+    // set up window size
+    this->size = rh.size;
+
+    // the window we'll be rendering to
     SDL_Window * window = NULL;
 
-    //Initialize SDL_ttf
+    // initialize SDL_ttf
     if(TTF_Init() == -1) {
         cout << "SDL_ttf could not initialize! SDL_ttf Error: " << TTF_GetError();
 
@@ -33,11 +39,11 @@ void Window::init() {
         }
     }
 
-    //Initialize SDL
+    // initialize SDL
     if(SDL_Init( SDL_INIT_VIDEO ) < 0) {
         cout << "SDL could not initialize! SDL_Error: " << SDL_GetError() << endl;
     } else {
-        //Create window
+        // create window
         window = SDL_CreateWindow("RushHour", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
 
         if(window == NULL) {
@@ -45,14 +51,10 @@ void Window::init() {
         } else {
             this->renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_ACCELERATED);
 
-            //Event handler
+            // event handler
             SDL_Event e;
 
-            string filepath = "./res/puzzle22.txt";
-
-            RushHour rh(filepath);
-            rh.solve_forward();
-
+            // render
             this->render(rh);
 
             while(!this->quit) {
@@ -140,8 +142,8 @@ void Window::rect(int row, int col, int width, int height) {
     box.w = width * Window::BLOCK_SIZE - Window::MARGIN_SIZE;
     box.h = height * Window::BLOCK_SIZE - Window::MARGIN_SIZE;
 
-    box.x = (Window::SCREEN_WIDTH - 6 * Window::BLOCK_SIZE) / 2 + col * Window::BLOCK_SIZE + Window::MARGIN_SIZE;
-    box.y = (Window::SCREEN_HEIGHT - 6 * Window::BLOCK_SIZE) / 2 + row * Window::BLOCK_SIZE + Window::MARGIN_SIZE;
+    box.x = (Window::SCREEN_WIDTH - this->size * Window::BLOCK_SIZE) / 2 + col * Window::BLOCK_SIZE + Window::MARGIN_SIZE;
+    box.y = (Window::SCREEN_HEIGHT - this->size * Window::BLOCK_SIZE) / 2 + row * Window::BLOCK_SIZE + Window::MARGIN_SIZE;
 
     SDL_RenderDrawRect(this->renderer, & box);
 };
@@ -149,11 +151,11 @@ void Window::rect(int row, int col, int width, int height) {
 void Window::wall(int row, int col, bool orientation) {
     SDL_SetRenderDrawColor(this->renderer, 255, 255, 255, 255);
 
-    int topLeftCornerX = (Window::SCREEN_WIDTH - 6 * Window::BLOCK_SIZE) / 2;
-    int topLeftCornerY = (Window::SCREEN_HEIGHT - 6 * Window::BLOCK_SIZE) / 2;
+    int topLeftCornerX = (Window::SCREEN_WIDTH - this->size * Window::BLOCK_SIZE) / 2;
+    int topLeftCornerY = (Window::SCREEN_HEIGHT - this->size * Window::BLOCK_SIZE) / 2;
 
-    int bottomRightCornerX = topLeftCornerX + 6 * Window::BLOCK_SIZE + Window::MARGIN_SIZE;
-    int bottomRightCornerY = topLeftCornerY + 6 * Window::BLOCK_SIZE + Window::MARGIN_SIZE;
+    int bottomRightCornerX = topLeftCornerX + this->size * Window::BLOCK_SIZE + Window::MARGIN_SIZE;
+    int bottomRightCornerY = topLeftCornerY + this->size * Window::BLOCK_SIZE + Window::MARGIN_SIZE;
 
     SDL_RenderDrawLine(this->renderer, topLeftCornerX, topLeftCornerY, bottomRightCornerX, topLeftCornerY);
     SDL_RenderDrawLine(this->renderer, bottomRightCornerX, topLeftCornerY, bottomRightCornerX, bottomRightCornerY);

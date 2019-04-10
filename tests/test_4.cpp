@@ -6,13 +6,13 @@
 using namespace std;
 
 int main() {
-    // The window we'll be rendering to
+    // window we'll be rendering to
     SDL_Window * window = NULL;
 
     // SDL2 font
     TTF_Font * font = NULL;
 
-    // Initialize SDL_ttf
+    // initialize SDL_ttf
     if(TTF_Init() == -1) {
         cout << "SDL_ttf could not initialize! SDL_ttf Error: " << TTF_GetError();
 
@@ -26,11 +26,11 @@ int main() {
         }
     }
 
-    // Initialize SDL
+    // initialize SDL
     if(SDL_Init( SDL_INIT_VIDEO ) < 0) {
         cout << "SDL could not initialize! SDL_Error: " << SDL_GetError() << endl;
     } else {
-        //Create window
+        // create window
         window = SDL_CreateWindow("RushHour", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, 600, 600, SDL_WINDOW_SHOWN);
 
         if(window == NULL) {

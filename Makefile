@@ -15,9 +15,9 @@ SOURCES = $(filter-out ./obj/main.o, $(OBJS))
 
 .PHONY: clean help print
 
-all: clean $(TARGET)
+all: $(TARGET)
 
-check: clean $(ITEM)
+check: $(ITEM)
 
 $(ITEM): ./tests/test_$(item).cpp $(SOURCES)
 	$(CXX) $(CXXFLAGS) $^ -o $@ -lSDL2 -lSDL2_ttf
@@ -41,6 +41,7 @@ print:
 help:
 	@echo "Running main program:"
 	@echo "  none            - Build and execute main program"
+	@echo "  item=puzzle.txt - Build and execute main program with puzzle.txt as board "
 	@echo "Running test items:"
 	@echo "  print           - Show all available tests"
 	@echo "  check item=n    - Build and execute nth test from the available tests"
