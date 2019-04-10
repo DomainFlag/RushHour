@@ -39,11 +39,13 @@ print:
 	ls ./tests
 
 help:
-	@echo "Running main program:"
-	@echo "  none            - Build and execute main program"
-	@echo "  item=puzzle.txt - Build and execute main program with puzzle.txt as board "
+	@echo "Make [none]:"
+	@echo "  generate main file"
+	@echo "Running main:"
+	@echo "  none                 - Build and execute main program with default puzzle"
+	@echo "  item=[puzzle.txt]    - Build and execute main program with puzzle.txt as board"
 	@echo "Running test items:"
-	@echo "  print           - Show all available tests"
-	@echo "  check item=n    - Build and execute nth test from the available tests"
+	@echo "  print                - Show all available tests"
+	@echo "  check item=n         - Build and execute nth test from the available tests"
 	@echo "Cleaning targets:"
-	@echo "  clean           - Remove all generated files"
+	@echo "  make clean           - Remove all generated files"
