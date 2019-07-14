@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <mutex>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -26,7 +27,7 @@ public:
     int index = 0;
     unsigned int size = 6;
 
-    vector<Move *> thread;
+    vector<Move *> path;
 
     Block * target = NULL;
     Block * destination = NULL;
@@ -86,7 +87,7 @@ public:
     string encode();
 
     // record the current board to not eat your own tail
-    Move * record(Move * move);
+    Move * record(Move * move, string & encoding);
 
     // make board empty
     void zeros();
@@ -118,10 +119,10 @@ public:
     // backward a move from its initial state
     void backward(Move * move, bool save);
 
-    // cycle a connected move(thread) based on value
+    // cycle a connected move(path) based on value
     void cycle(int value);
 
-    // get thread size, distance to a resolved position
+    // get path size, distance to a resolved position
     int depth();
 
     // solve forward a graph by breadth first search
@@ -136,8 +137,14 @@ public:
     // solve clusters by returning the one with maximal distance to resolved state
     Cluster * solve_clusters(vector<Cluster *> & clusters);
 
+    // solve clusters in parallel by returning the one with maximal distance to resolved state
+    Cluster * solve_parallel_clusters(vector<Cluster *> & clusters, int threadCount = 1);
+
+    // solve a clusters in parallel by returning the cluster with the distance to resolved state
+    static void solve_parallel_cluster(RushHour & rushHour, vector<Cluster *> & clusters, mutex & locker, int & counter);
+
     // solve backward and construct a full graph given a starting position
-    void solve_backward(unordered_set<Move *> & graph);
+    void solve_backward(unordered_set<Move *> & graph, unordered_set<string> * state = nullptr);
 
     // solve a graph by breadth first search and marking to get maximal distance within a graph
     Move * solve_graph(unordered_set<Move *> & graph);

@@ -9,12 +9,16 @@
 #include <queue>
 #include <time.h>
 #include <limits>
+#include <chrono>
+#include <thread>
+#include <mutex>
 #include <algorithm>
 
 #include "./../include/Block.h"
 #include "./../include/Move.h"
 #include "./../include/Cluster.h"
 #include "./../include/RushHour.h"
+#include "./../include/Profiler.h"
 
 using namespace std;
 
@@ -35,8 +39,7 @@ RushHour::RushHour(unsigned int size) {
 };
 
 RushHour::RushHour(string filepath) {
-    fstream file(filepath);
-
+    fstream file("./../" + filepath);
     if(file.is_open()) {
         // Reading size of board
         unsigned int size;
@@ -142,19 +145,19 @@ bool RushHour::parseBool(string message) {
     string value;
     cin >> value;
 
-    while(true) {
-        if(value.size() != 1) {
-            cout << "Press a single key [y|n]: ";
-        } else {
-            if(value[0] == 'y' || value[0] == 'Y')
-                return true;
+    if(value.size() != 1) {
+        cout << "Press a single key [y|n]: ";
+    } else {
+        if(value[0] == 'y' || value[0] == 'Y')
+            return true;
 
-            if(value[0] == 'n' || value[0] == 'N')
-                return false;
+        if(value[0] == 'n' || value[0] == 'N')
+            return false;
 
-            cout << "Press a valid key [y|n]: ";
-        }
+        cout << "Press a valid key [y|n]: ";
     }
+
+    return RushHour::parseBool(message);
 };
 
 void RushHour::sample(RushHour & rushHour, unsigned int count) {
@@ -289,7 +292,7 @@ void RushHour::createGraph(unsigned int size, unsigned int count) {
     rushHour.blocks.reserve(count + 1);
 
     // by default horizontal as all RushHour configurations are symmetrical to respect of target's orientation
-    Block * target = new Block(rushHour.size / 2, rushHour.size - 2, 2, 2, 1);
+    auto * target = new Block(rushHour.size / 2, rushHour.size - 2, 2, 2, 1);
     rushHour.target = target;
     rushHour.blocks.push_back(target);
     rushHour.insert(target);
@@ -299,7 +302,7 @@ void RushHour::createGraph(unsigned int size, unsigned int count) {
 
     // initialize blocks
     for(unsigned int g = 0; g < count; g++) {
-        Block * block = new Block(0, 0, 2, 1);
+        auto * block = new Block(0, 0, 2, 1);
 
         rushHour.blocks.push_back(block);
     }
@@ -349,19 +352,26 @@ void RushHour::createGraph(unsigned int size, unsigned int count) {
             rushHour.blocks[g]->orientation = 0;
         }
 
-        // our target can't be rotated thus no need for outer call
+        Profiler profiler;
+        profiler.start();
+
         rushHour.backtrackGraph(clusters, state);
+
+        profiler.end();
 
         break;
     }
 
-    // show clusters size
     printf("Clusters size: %lu\n", clusters.size());
 
-    // retrieve the most dense cluster
-    Cluster * cluster = rushHour.solve_clusters(clusters);
+    Profiler profiler;
+    profiler.start();
 
-    // show max number of moves
+    // retrieve the most dense cluster
+    Cluster * cluster = rushHour.solve_parallel_clusters(clusters, 4);
+
+    profiler.end();
+
     printf("For %dd with only 2 length blocks and all possible orientations - %d\n", rushHour.size, cluster->gap->mark);
 
     // save board
@@ -373,7 +383,6 @@ void RushHour::createGraph(unsigned int size, unsigned int count) {
         // forward the board from resolved position to starting position
         rushHour.forward(cluster->gap);
 
-        // save it
         RushHour::saveToFile(rushHour);
     }
 
@@ -385,33 +394,20 @@ void RushHour::createGraph(unsigned int size, unsigned int count) {
 
 void RushHour::backtrackGraph(vector<Cluster *> & clusters, unordered_set<string> & state, unsigned int depth) {
     if(depth == this->blocks.size() - 1) {
-        string state = this->encode();
-        if(this->state.find(state) != this->state.end()) {
-            // if the state is within any of states of a cluster, then they are the same
-            return;
-        }
+        auto * cluster = new Cluster(this->target, this->destination, this->blocks);
 
-        // create a new cluster
-        Cluster * cluster = new Cluster(this->target, this->destination, this->blocks);
+        this->root = new Move();
 
-        // cluster head assign
-        cluster->head = new Move();
+        solve_backward(cluster->graph, &state);
 
-        // push to the back to free later
+        cluster->head = this->root;
+
         clusters.push_back(cluster);
-
-        // replacing root head with cluster head
-        this->root = cluster->head;
-
-        // make cluster graph
-        solve_backward(cluster->graph);
 
         return;
     }
 
-    for(unsigned int g = 0; g < this->blocks.size(); g++) {
-        Block * & block = this->blocks[g];
-
+    for(auto & block : this->blocks) {
         if(block == this->target)
             continue;
 
@@ -425,9 +421,9 @@ void RushHour::backtrackGraph(vector<Cluster *> & clusters, unordered_set<string
                     }
 
                     if(this->resolve(block)) {
-                        string current = this->encode();
-                        if(state.find(current) == state.end()) {
-                            state.insert(current);
+                        string encoding = this->encode();
+                        if(state.find(encoding) == state.end()) {
+                            state.insert(encoding);
 
                             // forward change
                             this->insert(block);
@@ -462,31 +458,27 @@ void RushHour::insert(Block * block, bool revert) {
 string RushHour::encode() {
     stringstream ss;
 
-    map<int, Block *> blocks;
-    for(unsigned int g = 0; g < this->blocks.size(); g++) {
-        Block * & block = this->blocks[g];
-
-        blocks.insert({block->row * this->size + block->col, block});
+    map<int, Block *> ordered_blocks;
+    for(auto & block : this->blocks) {
+        ordered_blocks.insert({block->row * this->size + block->col, block});
     }
 
-    for(auto it = blocks.begin(); it != blocks.end(); it++) {
-        ss << it->second->row << it->second->col << it->second->length << it->second->orientation << it->second->value;
+    for(auto & block : ordered_blocks) {
+        ss << block.second->row << block.second->col << block.second->length << block.second->orientation << block.second->value;
     }
 
     return ss.str();
 };
 
-Move * RushHour::record(Move * move) {
-    string state = this->encode();
-
-    auto it = this->state.find(state);
+Move * RushHour::record(Move * move, string & encoding) {
+    auto it = this->state.find(encoding);
     if(it == this->state.end()) {
-        this->state.insert({state, move});
+        this->state.insert({encoding, move});
     } else {
         return it->second;
     }
 
-    return NULL;
+    return nullptr;
 };
 
 void RushHour::zeros() {
@@ -500,14 +492,13 @@ void RushHour::zeros() {
 void RushHour::init() {
     this->zeros();
 
-    for(unsigned int g = 0; g < this->blocks.size(); g++) {
-         insert(this->blocks[g]);
+    for(auto & block : this->blocks) {
+         insert(block);
     }
 };
 
 void RushHour::init(Cluster * & cluster) {
     this->zeros();
-
 
     for(unsigned int g = 0; g < cluster->blocks.size(); g++) {
          * this->blocks[g] = cluster->blocks[g];
@@ -591,13 +582,13 @@ void RushHour::forward(Move * move) {
 };
 
 void RushHour::backward(Move * move, bool save) {
-    if(move->parent != NULL) {
+    if(move->parent != nullptr) {
         this->resolve(move, true);
 
         this->backward(move->parent, save);
 
         if(save) {
-            this->thread.push_back(move);
+            this->path.push_back(move);
         }
     }
 };
@@ -605,11 +596,11 @@ void RushHour::backward(Move * move, bool save) {
 void RushHour::cycle(int value) {
     unsigned int i = this->index + value;
 
-    if(i >= 0 && i < this->thread.size()) {
+    if(i >= 0 && i < this->path.size()) {
         if(value == -1) {
-            this->resolve(this->thread[this->index - 1], true);
+            this->resolve(this->path[this->index - 1], true);
         } else {
-            this->resolve(this->thread[this->index], false);
+            this->resolve(this->path[this->index], false);
         }
 
         this->index = i;
@@ -630,7 +621,8 @@ void RushHour::solve_forward() {
 
         forward(move);
 
-        if(this->record(move) == NULL) {
+        string encoding = this->encode();
+        if(this->record(move, encoding) == nullptr) {
             if(this->resolve()) {
                 backward(move, true);
 
@@ -660,11 +652,11 @@ void RushHour::solve_forward() {
 };
 
 int RushHour::depth() {
-    return thread.size();
+    return path.size();
 };
 
 Move * RushHour::solve_cluster(unordered_set<Move *> & graph, Move * root) {
-    if(root == NULL) {
+    if(root == nullptr) {
         this->clear();
 
         this->root = new Move();
@@ -677,7 +669,7 @@ Move * RushHour::solve_cluster(unordered_set<Move *> & graph, Move * root) {
     return this->root;
 };
 
-void RushHour::solve_backward(unordered_set<Move *> & graph) {
+void RushHour::solve_backward(unordered_set<Move *> & graph, unordered_set<string> * state) {
     queue<Move *> ariadne;
     ariadne.push(this->root);
 
@@ -687,15 +679,20 @@ void RushHour::solve_backward(unordered_set<Move *> & graph) {
 
         forward(move);
 
-        Move * link = this->record(move);
+        string encoding = this->encode();
+        if(state != nullptr && state->find(encoding) != state->end()) {
+            state->insert(encoding);
+        }
+
+        Move * link = this->record(move, encoding);
         move->resolved = this->resolve();
 
-        bool beenThere = link != NULL && link->parent != move->parent;
+        bool beenThere = link != nullptr && link->parent != move->parent;
 
         if(beenThere) {
             link->parents.insert(move->parent);
 
-            if(move->parent != NULL) {
+            if(move->parent != nullptr) {
                 move->parent->children.erase(move);
                 move->parent->children.insert(link);
             } else {
@@ -736,14 +733,14 @@ void RushHour::solve_backward(unordered_set<Move *> & graph) {
 };
 
 Cluster * RushHour::solve_clusters(vector<Cluster *> & clusters) {
-    Cluster * prov = NULL;
+    Cluster * prov = nullptr;
     int distance = 0;
 
     for(Cluster * & cluster : clusters) {
         this->init(cluster);
 
         cluster->gap = solve_graph(cluster->graph);
-        if(cluster->gap != NULL && cluster->gap->mark > distance) {
+        if(cluster->gap != nullptr && cluster->gap->mark > distance) {
             prov = cluster;
 
             distance = cluster->gap->mark;
@@ -753,15 +750,63 @@ Cluster * RushHour::solve_clusters(vector<Cluster *> & clusters) {
     return prov;
 };
 
+Cluster * RushHour::solve_parallel_clusters(vector<Cluster *> & clusters, int threadCount) {
+    Cluster * prov = nullptr;
+    int distance = 0;
+
+    vector<RushHour> boards(threadCount, RushHour(size));
+    vector<thread> threads;
+
+    mutex locker;
+    int counter = 0;
+    for(int g = 0; g < threadCount; g++) {
+        thread th(RushHour::solve_parallel_cluster, ref(boards.at(g)), ref(clusters), ref(locker), ref(counter));
+
+        threads.push_back(move(th));
+    }
+
+    for(thread & th : threads) {
+        th.join();
+    }
+
+    for(Cluster * & cluster : clusters) {
+        if(cluster->gap != nullptr && cluster->gap->mark > distance) {
+            prov = cluster;
+
+            distance = cluster->gap->mark;
+        }
+    }
+
+    return prov;
+};
+
+void RushHour::solve_parallel_cluster(RushHour & rushHour, vector<Cluster *> & clusters, mutex & locker, int & counter) {
+    bool flag = true;
+    while(flag) {
+        locker.lock();
+        int index = counter++;
+        locker.unlock();
+
+        if(index < clusters.size()) {
+            Cluster * cluster = clusters.at(index);
+            rushHour.init(cluster);
+
+            cluster->gap = rushHour.solve_graph(cluster->graph);
+        } else {
+            flag = false;
+        }
+    }
+}
+
 Move * RushHour::solve_graph(unordered_set<Move *> & graph) {
     Move * move, * root;
     int mark, depth;
 
-    for(auto it = graph.begin(); it != graph.end(); it++) {
+    for(auto it : graph) {
         unordered_set<Move *> state;
         queue<Move *> moves;
 
-        root = (* it);
+        root = it;
         root->mark = -1;
 
         state.insert(root);
@@ -829,7 +874,7 @@ Move * RushHour::solve_graph(unordered_set<Move *> & graph) {
 
     mark = -1;
 
-    Move * gap = NULL;
+    Move * gap = nullptr;
     for(Move * move : graph) {
         if(!move->resolved) {
             if(move->mark > mark) {
@@ -840,11 +885,11 @@ Move * RushHour::solve_graph(unordered_set<Move *> & graph) {
         }
     }
 
-    if(gap != NULL && gap->mark != -1) {
+    if(gap != nullptr && gap->mark != -1) {
         this->forward(gap);
 
         return gap;
     }
 
-    return NULL;
+    return nullptr;
 };

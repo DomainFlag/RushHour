@@ -1,0 +1,1 @@
+add_library(DEPENDENCIES Block.cpp Move.cpp Cluster.cpp RushHour.cpp Window.cpp Profiler.cpp ../include/Profiler.h)

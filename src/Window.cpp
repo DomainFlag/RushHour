@@ -23,7 +23,7 @@ void Window::init(string filepath) {
     this->size = rh.size;
 
     // the window we'll be rendering to
-    SDL_Window * window = NULL;
+    SDL_Window * window = nullptr;
 
     // initialize SDL_ttf
     if(TTF_Init() == -1) {
@@ -31,8 +31,8 @@ void Window::init(string filepath) {
 
         return;
     } else {
-        this->font = TTF_OpenFont("./calibri/Calibri.ttf", 24);
-        if(this->font == NULL) {
+        this->font = TTF_OpenFont("./../res/open_sans_regular.ttf", 24);
+        if(this->font == nullptr) {
             cout << "TTF_OpenFont: " <<  TTF_GetError() << endl;
 
             return;
@@ -46,7 +46,7 @@ void Window::init(string filepath) {
         // create window
         window = SDL_CreateWindow("RushHour", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
 
-        if(window == NULL) {
+        if(window == nullptr) {
             cout << "Window could not be created! SDL_Error: " << SDL_GetError();
         } else {
             this->renderer = SDL_CreateRenderer(window, 0, SDL_RENDERER_ACCELERATED);
@@ -94,7 +94,7 @@ void Window::init(string filepath) {
         }
     }
 
-    if(this->font != NULL) {
+    if(this->font != nullptr) {
         // free sdl2 fonts
         TTF_CloseFont(font);
     }
@@ -208,7 +208,7 @@ void Window::text(float x, float y, string text) {
     SDL_Rect message = {(int) x - surface->w / 2, (int) y + surface->h / 2, surface->w, surface->h};
 
     // copy to main renderer
-    SDL_RenderCopy(this->renderer, texture, NULL, & message);
+    SDL_RenderCopy(this->renderer, texture, nullptr, & message);
 
     // destroy font texture
     SDL_DestroyTexture(texture);
